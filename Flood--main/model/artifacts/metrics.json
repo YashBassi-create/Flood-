@@ -1,0 +1,93 @@
+{
+  "model_name": "PravahaNet-RF",
+  "architecture": "RandomForestClassifier (400 trees)",
+  "samples_trained": 16000,
+  "samples_tested": 4000,
+  "accuracy": 0.8685,
+  "macro_f1": 0.8396,
+  "severe_precision": 0.9474,
+  "severe_recall": 0.9197,
+  "classification_report": {
+    "Low": {
+      "precision": 0.9394273127753304,
+      "recall": 0.9074468085106383,
+      "f1-score": 0.9231601731601732,
+      "support": 1880.0
+    },
+    "Moderate": {
+      "precision": 0.7452725250278087,
+      "recall": 0.777262180974478,
+      "f1-score": 0.760931289040318,
+      "support": 862.0
+    },
+    "High": {
+      "precision": 0.702258726899384,
+      "recall": 0.7844036697247706,
+      "f1-score": 0.7410617551462622,
+      "support": 436.0
+    },
+    "Severe": {
+      "precision": 0.9473684210526315,
+      "recall": 0.9197080291970803,
+      "f1-score": 0.9333333333333333,
+      "support": 822.0
+    },
+    "accuracy": 0.8685,
+    "macro avg": {
+      "precision": 0.8335817464387886,
+      "recall": 0.8472051721017417,
+      "f1-score": 0.8396216376700216,
+      "support": 4000.0
+    },
+    "weighted avg": {
+      "precision": 0.8733674779062469,
+      "recall": 0.8685,
+      "f1-score": 0.8704417054844126,
+      "support": 4000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      1706,
+      174,
+      0,
+      0
+    ],
+    [
+      110,
+      670,
+      79,
+      3
+    ],
+    [
+      0,
+      55,
+      342,
+      39
+    ],
+    [
+      0,
+      0,
+      66,
+      756
+    ]
+  ],
+  "feature_importances": {
+    "rain_1h": 0.234,
+    "rain_6h": 0.146,
+    "slope": 0.1338,
+    "river_level": 0.1056,
+    "drainage_density": 0.0995,
+    "rain_24h": 0.0913,
+    "elevation": 0.0593,
+    "soil_moisture": 0.052,
+    "rain_72h": 0.0483,
+    "forest_cover": 0.0302
+  },
+  "classes": [
+    "Low",
+    "Moderate",
+    "High",
+    "Severe"
+  ]
+}

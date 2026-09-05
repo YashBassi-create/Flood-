@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PRAVAHA — Flash Flood Early Warning Desktop Application | SIH 2026</title>
+
+  <!-- PWA & Desktop App Capabilities -->
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PRAVAHA" />
+  <meta name="theme-color" content="#0b1120" />
+
+  <!-- Google Fonts: Fraunces (Editorial Display) & Inter (UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="editorial-light">
+
+  <!-- Native macOS Desktop App Titlebar -->
+  <div class="macos-app-bar">
+    <div class="macos-traffic-lights">
+      <span class="traffic-dot dot-close" title="Close"></span>
+      <span class="traffic-dot dot-minimize" title="Minimize"></span>
+      <span class="traffic-dot dot-zoom" title="Full Window"></span>
+    </div>
+    <div class="macos-app-title">
+      <span class="app-dot-live"></span>
+      <span>PRAVAHA Desktop · Flash Flood Early Warning System</span>
+      <span class="app-version-tag">v1.2 Native App</span>
+    </div>
+    <div class="macos-app-tools">
+      <span class="app-hotkey-hint">Shortcuts: <b>1-4</b> Tabs · <b>D</b> Theme · <b>/</b> Search</span>
+    </div>
+  </div>
+
+  <!-- Top Emergency Broadcast Strip -->
+  <div id="alert-ticker" class="alert-ticker hidden">
+    <div class="ticker-content">
+      <span class="ticker-badge pulse-badge">🚨 CRITICAL ADVISORY</span>
+      <span id="ticker-text" class="ticker-text">Loading active hydrological alerts...</span>
+    </div>
+    <button class="ticker-close" onclick="document.getElementById('alert-ticker').classList.add('hidden')">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-branding">
+      <div class="brand-emblem">🌊</div>
+      <div>
+        <h1 class="brand-title">PRAVAHA <span class="hindi-sub">प्रवाह</span></h1>
+        <p class="brand-subtitle">Flash Flood Early Warning System · Hilly Regions of India · SIH 2026</p>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Status Pill -->
+    <div class="header-status">
+      <div class="status-indicator">
+        <span class="status-dot live-pulse"></span>
+        <span class="status-label">LIVE DATA FUSION</span>
+      </div>
+      <div class="clock-display" id="live-clock">--:--:-- IST</div>
+      <div class="data-badge" id="bucket-badge">Bucket #-- (4m cycle)</div>
+    </div>
+
+    <!-- Navigation Tabs & Theme Toggle -->
+    <div class="header-nav-group">
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="map-tab" title="Hotkey: 1">
+          <span class="tab-icon">🗺️</span> Risk Map
+        </button>
+        <button class="tab-btn" data-tab="cross-section-tab" title="Hotkey: 2">
+          <span class="tab-icon">🏔️</span> V-Valley Sim
+        </button>
+        <button class="tab-btn" data-tab="whatif-tab" title="Hotkey: 3">
+          <span class="tab-icon">🔮</span> What-If Lab
+        </button>
+        <button class="tab-btn" data-tab="metrics-tab" title="Hotkey: 4">
+          <span class="tab-icon">📊</span> PravahaNet-RF
+        </button>
+      </nav>
+
+      <!-- Keyboard & File Shortcuts Button -->
+      <button id="shortcuts-btn" class="shortcuts-toggle-btn" title="View Keyboard & File Shortcuts (Hotkey: '?')" onclick="openShortcutsModal()" aria-label="Shortcuts">
+        <span class="shortcuts-icon">⌨️</span>
+        <span class="shortcuts-label">Shortcuts (?)</span>
+      </button>
+
+      <!-- Prominent Dark Mode Toggle Button -->
+      <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Dark / Light Mode (Hotkey: 'D')" aria-label="Toggle Dark Mode">
+        <span class="theme-icon" id="theme-icon">🌙</span>
+        <span class="theme-label" id="theme-label">Dark Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Summary Stats Ticker Cards -->
+  <section class="summary-metrics-bar">
+    <div class="metric-card">
+      <span class="metric-label">Monitored Basins</span>
+      <span class="metric-val" id="stat-total-nodes">49</span>
+      <span class="metric-sub">Himalaya & Corridors</span>
+    </div>
+    <div class="metric-card severe-card">
+      <span class="metric-label">Severe Inundation</span>
+      <span class="metric-val severe-text" id="stat-severe">0</span>
+      <span class="metric-sub">Mandatory Evacuation</span>
+    </div>
+    <div class="metric-card high-card">
+      <span class="metric-label">High Risk Level</span>
+      <span class="metric-val high-text" id="stat-high">0</span>
+      <span class="metric-sub">Near Bankfull</span>
+    </div>
+    <div class="metric-card mod-card">
+      <span class="metric-label">Moderate Watch</span>
+      <span class="metric-val mod-text" id="stat-mod">0</span>
+      <span class="metric-sub">Soil Saturated</span>
+    </div>
+    <div class="metric-card low-card">
+      <span class="metric-label">Safe / Normal</span>
+      <span class="metric-val low-text" id="stat-low">0</span>
+      <span class="metric-sub">Baseflow Margins</span>
+    </div>
+  </section>
+
+  <!-- Main View Area -->
+  <main class="main-layout">
+
+    <!-- Tab 1: Interactive Risk Map & Nodes -->
+    <section id="map-tab" class="tab-content active">
+      <div class="map-view-grid">
+        <!-- Sidebar: Filter & Region List -->
+        <aside class="sidebar-panel">
+          <div class="filter-controls">
+            <input type="text" id="search-input" class="search-field" placeholder="Search station, river, district..." />
+            <div class="filter-row">
+              <select id="state-filter" class="select-field">
+                <option value="all">All States / UTs</option>
+              </select>
+              <select id="risk-filter" class="select-field">
+                <option value="all">All Risk Levels</option>
+                <option value="Severe">Severe</option>
+                <option value="High">High</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="layer-toggles">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-weather" checked />
+                <span>Storm Weather Layer</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-rivers" checked />
+                <span>River Pulse Streamers</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="node-list-container">
+            <div class="node-list-header">
+              <span>Monitoring Nodes (<span id="nodes-count">0</span>)</span>
+              <span class="sort-tag">Ranked by Risk</span>
+            </div>
+            <div id="node-list" class="node-list">
+              <!-- Dynamically populated -->
+              <div class="loading-spinner">Loading hydrological telemetry...</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center: Leaflet Map -->
+        <div class="map-wrapper">
+          <div id="leaflet-map" class="leaflet-container"></div>
+          <div class="map-legend">
+            <span class="legend-item"><span class="legend-dot dot-severe"></span> Severe (Over Bankfull)</span>
+            <span class="legend-item"><span class="legend-dot dot-high"></span> High (Warning)</span>
+            <span class="legend-item"><span class="legend-dot dot-moderate"></span> Moderate (Watch)</span>
+            <span class="legend-item"><span class="legend-dot dot-low"></span> Low (Normal)</span>
+          </div>
+        </div>
+
+        <!-- Right: Region Inspection & Hydrology Details -->
+        <div id="inspection-panel" class="inspection-panel">
+          <div class="panel-placeholder" id="panel-empty-state">
+            <div class="placeholder-icon">📍</div>
+            <h3>Select a Monitoring Node</h3>
+            <p>Click on any river-gauge pin on the map or select a station from the list to inspect live hydrological simulation, hydrographs, and NDRF flood advisories.</p>
+          </div>
+
+          <div id="panel-details" class="panel-details hidden">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: V-Valley Animated Cross-Section Simulation -->
+    <section id="cross-section-tab" class="tab-content">
+      <div class="cross-section-grid">
+        <div class="sim-canvas-container">
+          <div class="canvas-header">
+            <div class="canvas-title-group">
+              <h2 id="sim-region-title" class="serif-title">Himalayan V-Valley Hydrological Cross-Section</h2>
+              <p id="sim-region-sub" class="sim-subtitle">Manning's Equation Hydraulic Channel · Glacier Melt · Dam Spillway Jet · Real-time Physics</p>
+            </div>
+            <div class="canvas-controls">
+              <!-- Real-time Live Feed Ticker / Pulse Badge -->
+              <div class="realtime-status-pill" title="Live 3-second Dam & River Telemetry Feed (CWC / NDSA)">
+                <span class="live-dot-pulse"></span>
+                <span id="realtime-feed-label">LIVE DAM API</span>
+                <span id="realtime-ping-time" class="ping-badge">3s sync</span>
+              </div>
+              <div class="sim-selector-pill">
+                <label for="sim-station-select" class="sim-select-label">📍 Focused Station:</label>
+                <select id="sim-station-select" class="select-field sim-station-select" title="Switch simulated station">
+                  <option value="">Loading basins...</option>
+                </select>
+              </div>
+              <button id="sim-stream-toggle-btn" class="btn btn-outline" onclick="toggleSimLiveStream()" title="Pause or resume live real-time API streaming">⏸️ Pause Live Feed</button>
+              <button id="sim-regen-btn" class="btn btn-outline" title="Reseed precipitation noise">↺ Reseed Rain</button>
+            </div>
+          </div>
+
+          <!-- Unobstructed Canvas Wrapper (100% full height & fully visible) -->
+          <div class="canvas-wrapper">
+            <canvas id="valley-canvas" width="900" height="520"></canvas>
+          </div>
+
+          <!-- Unobstructed Real-Time Hydrology & Dam Telemetry Deck (Placed below canvas so whole cross-section is 100% visible) -->
+          <div class="canvas-telemetry-deck">
+            <div class="deck-item">
+              <span class="deck-label">🌊 Channel Discharge</span>
+              <span id="hud-discharge" class="deck-val">-- m³/s</span>
+              <span id="hud-discharge-sub" class="deck-sub">Bankfull: --</span>
+            </div>
+            <div class="deck-item">
+              <span class="deck-label">📏 Hydraulic Stage Depth</span>
+              <span id="hud-depth" class="deck-val">-- m</span>
+              <span id="hud-stage-sub" class="deck-sub">Stage ratio: --</span>
+            </div>
+            <div class="deck-item">
+              <span class="deck-label">⚡ Manning Flow Velocity</span>
+              <span id="hud-velocity" class="deck-val">-- m/s</span>
+              <span id="hud-velocity-sub" class="deck-sub">Bed n: 0.045</span>
+            </div>
+            <div class="deck-item deck-item-dam">
+              <div class="deck-dam-header">
+                <span class="deck-label">🏗️ Upstream Dam Telemetry (CWC / NDSA)</span>
+                <span id="hud-dam-badge" class="badge-pill badge-normal">LIVE API</span>
+              </div>
+              <span id="hud-dam-release" class="deck-val deck-val-dam">-- m³/s</span>
+              <span id="hud-dam" class="deck-sub">Connecting to CWC Dam API...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation Physics Explainer & Real-Time Dam Card -->
+        <div class="sim-sidebar">
+          <!-- Real-Time Dam Telemetry Card -->
+          <div id="dam-telemetry-card" class="dam-telemetry-card">
+            <div class="dam-card-header">
+              <div class="dam-title-row">
+                <span class="dam-emblem">🏗️</span>
+                <div>
+                  <h3 id="dam-name" class="dam-name">Upstream Dam Telemetry</h3>
+                  <p id="dam-sub" class="dam-sub">Connecting to CWC & NDSA...</p>
+                </div>
+              </div>
+              <span id="dam-status-tag" class="dam-status-tag tag-normal">NORMAL</span>
+            </div>
+
+            <!-- Storage Capacity Bar -->
+            <div class="dam-storage-box">
+              <div class="dam-bar-labels">
+                <span id="dam-storage-label">Reservoir Storage: <b>--%</b></span>
+                <span id="dam-threshold-label">Rule Curve: <b>--%</b></span>
+              </div>
+              <div class="dam-storage-bar-bg">
+                <div id="dam-storage-bar-fill" class="dam-storage-bar-fill" style="width: 0%;"></div>
+                <div id="dam-rule-curve-marker" class="dam-rule-curve-marker" style="left: 88%;" title="Monsoon Rule Curve Safety Threshold"></div>
+              </div>
+              <div class="dam-level-meta">
+                <span id="dam-water-level">Water Level: <b>-- m</b></span>
+                <span id="dam-frl-level">FRL: <b>-- m</b></span>
+              </div>
+            </div>
+
+            <!-- Gate Operations Matrix -->
+            <div class="dam-gates-grid">
+              <div class="dam-stat-box">
+                <span class="dam-stat-label">Radial Gates</span>
+                <span id="dam-gates-count" class="dam-stat-val">--</span>
+              </div>
+              <div class="dam-stat-box">
+                <span class="dam-stat-label">Spillway Outflow</span>
+                <span id="dam-spillway-val" class="dam-stat-val">-- m³/s</span>
+              </div>
+              <div class="dam-stat-box">
+                <span class="dam-stat-label">Reservoir Inflow</span>
+                <span id="dam-inflow-val" class="dam-stat-val">-- m³/s</span>
+              </div>
+              <div class="dam-stat-box">
+                <span class="dam-stat-label">Gate Opening</span>
+                <span id="dam-gate-opening" class="dam-stat-val">-- m</span>
+              </div>
+            </div>
+
+            <!-- Status Directives -->
+            <div id="dam-directive-box" class="dam-directive-box">
+              <div id="dam-directive-text" class="dam-directive-text">
+                Loading CWC reservoir parameters...
+              </div>
+            </div>
+
+            <!-- Live Feed Provenance -->
+            <div class="dam-api-footer">
+              <span class="pulse-dot-green"></span>
+              <span id="dam-api-timestamp">CWC Live API · Updated just now</span>
+            </div>
+          </div>
+
+          <h3 class="serif-sub">Hydraulic Physics Engines</h3>
+          <div class="explainer-card">
+            <h4>1. Manning's Equation</h4>
+            <p class="formula">v = (1/n) · R<sup>2/3</sup> · S<sup>1/2</sup></p>
+            <p>Calculates channel cross-sectional water velocity given bed roughness coefficient <em>n</em>, hydraulic radius <em>R</em>, and valley slope gradient <em>S</em>.</p>
+          </div>
+          <div class="explainer-card">
+            <h4>2. Dam Rule-Curve Surcharge</h4>
+            <p>Upstream reservoirs (e.g. Tehri, Pandoh, Bhakra) release surplus spillway discharge whenever reservoir storage exceeds monsoon rule curves to avoid crest overtopping.</p>
+          </div>
+          <div class="explainer-card">
+            <h4>3. Rain-on-Ice GLOF Trigger</h4>
+            <p>Cloudburst intensity (&gt;25 mm/h) over high-altitude moraine lakes accelerates glacier melt via sensible heat transfer, releasing sudden debris surges.</p>
+          </div>
+          <div class="explainer-card">
+            <h4>4. SCS Runoff Volume</h4>
+            <p>Soil moisture exceeding 80% reduces infiltration to near zero, converting 85-94% of incident rainfall directly into surface sheetwash.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 3: What-If Scenario Simulator -->
+    <section id="whatif-tab" class="tab-content">
+      <div class="whatif-grid">
+        <div class="whatif-form-panel">
+          <div class="form-header">
+            <h2 class="serif-title">PravahaNet-RF What-If Scenario Lab</h2>
+            <p>Adjust any of the 10 hydrological and terrain parameters below to run real-time inference on custom disaster conditions.</p>
+          </div>
+
+          <div class="presets-bar">
+            <span class="preset-label">Load Realistic Scenario:</span>
+            <button class="preset-pill" onclick="loadPreset('kedarnath_cloudburst')">Kedarnath 2013 Cloudburst</button>
+            <button class="preset-pill" onclick="loadPreset('wayanad_saturation')">Wayanad 2024 Saturated Slope</button>
+            <button class="preset-pill" onclick="loadPreset('punjab_dam_release')">Punjab 2023 Dam Surcharge</button>
+            <button class="preset-pill" onclick="loadPreset('normal_baseline')">Dry Season Normal Baseline</button>
+          </div>
+
+          <form id="whatif-form" class="sliders-grid">
+            <!-- Populated dynamically with 10 sliders -->
+          </form>
+        </div>
+
+        <div class="whatif-result-panel">
+          <h3 class="serif-sub">Model Prediction Output</h3>
+          <div class="result-badge-card" id="whatif-result-card">
+            <div class="result-risk-tag" id="whatif-risk-tag">Low</div>
+            <div class="result-confidence" id="whatif-confidence">Confidence: --%</div>
+          </div>
+
+          <div class="prob-distribution-card">
+            <h4>Class Probability Distribution</h4>
+            <div class="prob-bar-group" id="prob-bars">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="hazard-advisory-card" id="whatif-advisory">
+            <h4>Operational Recommendation</h4>
+            <p id="whatif-advisory-text">System is running in safe baseflow conditions.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: Model Diagnostics & Metrics -->
+    <section id="metrics-tab" class="tab-content">
+      <div class="metrics-grid">
+        <div class="metrics-top-row">
+          <div class="metric-stat-box">
+            <span class="stat-number" id="diag-accuracy">87.6%</span>
+            <span class="stat-title">Test Accuracy</span>
+            <span class="stat-note">Held-out 4,000 samples</span>
+          </div>
+          <div class="metric-stat-box">
+            <span class="stat-number" id="diag-f1">0.865</span>
+            <span class="stat-title">Macro F1-Score</span>
+            <span class="stat-note">Balanced across all 4 classes</span>
+          </div>
+          <div class="metric-stat-box">
+            <span class="stat-number" id="diag-severe-prec">96.4%</span>
+            <span class="stat-title">Severe Class Precision</span>
+            <span class="stat-note">Extremely low false alarms</span>
+          </div>
+          <div class="metric-stat-box">
+            <span class="stat-number">400</span>
+            <span class="stat-title">Decision Trees</span>
+            <span class="stat-note">PravahaNet-RF Ensemble</span>
+          </div>
+        </div>
+
+        <div class="metrics-details-row">
+          <!-- Feature Importance Chart -->
+          <div class="diagnostics-card">
+            <h3 class="serif-sub">Feature Importance Ranking</h3>
+            <p class="card-desc">Gini importance computed across 400 random forest estimators.</p>
+            <div id="feature-importance-list" class="feature-importance-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Confusion Matrix Heatmap -->
+          <div class="diagnostics-card">
+            <h3 class="serif-sub">Confusion Matrix (4x4)</h3>
+            <p class="card-desc">Predicted vs Actual class distributions on validation holdout.</p>
+            <div class="confusion-matrix-wrapper">
+              <table id="confusion-table" class="confusion-table">
+                <!-- Populated dynamically -->
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Flood Report Modal -->
+  <div id="report-modal" class="modal-overlay hidden">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="serif-title">📄 District Administration Flood Advisory Report</h3>
+        <button class="modal-close" onclick="closeReportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="report-text-pre" class="report-pre"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="copyReportText()" title="Copy text (Hotkey: C)">📋 Copy Text (C)</button>
+        <button class="btn btn-outline" onclick="saveReportToFile()" title="Save report to text file (Hotkey: ⌘S or S)">💾 Save to File (⌘S)</button>
+        <button class="btn btn-primary" onclick="window.print()" title="Print / PDF (Hotkey: P)">🖨️ Print Advisory (P)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard & File Shortcuts Modal -->
+  <div id="shortcuts-modal" class="modal-overlay hidden">
+    <div class="modal-window shortcuts-window">
+      <div class="modal-header">
+        <h3 class="serif-title">⌨️ Keyboard & File Shortcuts</h3>
+        <button class="modal-close" onclick="closeShortcutsModal()">✕</button>
+      </div>
+      <div class="modal-body shortcuts-body">
+        <div class="shortcuts-section">
+          <h4>💾 File & Data Export Shortcuts</h4>
+          <div class="shortcut-list">
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Save District Flood Advisory to text file</span>
+              <kbd class="shortcut-key">⌘S / S</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Export current station telemetry to JSON file</span>
+              <kbd class="shortcut-key">E</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Copy active flood advisory text to clipboard</span>
+              <kbd class="shortcut-key">C</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Print / Save advisory report as PDF</span>
+              <kbd class="shortcut-key">⌘P / P</kbd>
+            </div>
+          </div>
+        </div>
+
+        <div class="shortcuts-section">
+          <h4>🗺️ View & Tab Navigation</h4>
+          <div class="shortcut-list">
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Switch to Risk Map tab</span>
+              <kbd class="shortcut-key">1</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Switch to V-Valley Hydrology Sim tab</span>
+              <kbd class="shortcut-key">2</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Switch to What-If Scenario Lab tab</span>
+              <kbd class="shortcut-key">3</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Switch to PravahaNet-RF Metrics tab</span>
+              <kbd class="shortcut-key">4</kbd>
+            </div>
+          </div>
+        </div>
+
+        <div class="shortcuts-section">
+          <h4>⚡ Controls & Interface</h4>
+          <div class="shortcut-list">
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Toggle Dark / Light Theme</span>
+              <kbd class="shortcut-key">D</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Focus Station Search Filter</span>
+              <kbd class="shortcut-key">/ or ⌘K</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Open / Close this Shortcuts dialog</span>
+              <kbd class="shortcut-key">?</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">Close dialog / modal window</span>
+              <kbd class="shortcut-key">Escape</kbd>
+            </div>
+          </div>
+        </div>
+
+        <div class="shortcuts-section dock-tip-box">
+          <div class="dock-tip-header">
+            <span>📌 Add PRAVAHA to macOS Dock:</span>
+          </div>
+          <p class="dock-tip-text">
+            Drag <b>PRAVAHA.app</b> from the project folder directly onto your macOS Dock, or double-click <b>Install to Desktop.command</b> to put an instant launcher on your Desktop!
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="saveReportToFile()">💾 Save Current Advisory (⌘S)</button>
+        <button class="btn btn-outline" onclick="exportStationJson()">📥 Export JSON (E)</button>
+        <button class="btn btn-primary" onclick="closeShortcutsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- App JS -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

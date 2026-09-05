@@ -1,0 +1,16 @@
+{
+  "name": "PRAVAHA Flash Flood Early Warning System",
+  "short_name": "PRAVAHA",
+  "description": "Multi-source hydrological telemetry fusion and AI flash flood prediction for hilly regions of India",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/static/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
